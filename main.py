@@ -1,11 +1,11 @@
-from fastapi import FastAPI, HTTPException, Query
-from pydantic import BaseModel
-from typing import List, Optional
-from datetime import datetime
+from fastapi import FastAPI, HTTPException, Query # Importerar nödvändiga moduler, Query används för att skicka query parametrar
+from pydantic import BaseModel # Importerar BaseModel från pydantic för att skapa datamodeller
+from typing import List, Optional # List och Optional från typing för att kunna använda dessa datatyper
+from datetime import datetime 
  
 app = FastAPI()
  
-# Datamodeller
+# Datamodeller, mallar för hur data ska se ut
 class ShowTime(BaseModel):
     time: datetime
  
@@ -20,7 +20,8 @@ class Booking(BaseModel):
     showtime: ShowTime
     seat_number: int
     id: Optional[int] = None
- 
+
+# Databaser 
 movies_db = [
     Movie(id=1, title="Gladiator", description="Follow Maximus on his quest for vengance and survival. ", showtimes=[ShowTime(time=datetime(2024, 11, 8, 12, 0))]),
     Movie(id=2, title="Titanic", description="Rose from first class meets Jack from the third class on board of the Titanic.", showtimes=[ShowTime(time=datetime(2024, 11, 10, 12, 0))]),
@@ -31,16 +32,21 @@ bookings_db: List[Booking] = []
 next_booking_id = 1
  
 @app.get("/movies", response_model=List[Movie])
-def get_movies(date: Optional[datetime] = Query(None)):
+def get_movies(date: Optional[datetime] = Query(None)): 
+    # Om ett datum skickas med i requestet så filtreras filmerna efter detta datum
     if date:
         available_movies = []
         for movie in movies_db:
             available_showtimes = [showtime for showtime in movie.showtimes if showtime.time.date() == date.date()]
+            # Om det finns visningstider för filmen på det angivna datumet så läggs filmen till i listan
             if available_showtimes:
                 available_movies.append(Movie(id=movie.id, title=movie.title, description=movie.description, showtimes=available_showtimes))
+        # Returnerar en lista med filmer som har visningstider på det angivna datumet
         return available_movies
+    # Om inget datum skickas med i requestet så returneras alla filmer
     return movies_db
  
+# Skapar en ny bokning
 @app.post("/bookings", response_model=Booking, status_code=201)
 def create_booking(booking: Booking):
     global next_booking_id
@@ -66,26 +72,33 @@ def create_booking(booking: Booking):
     # returnerar en lyckad bokning till klienten
     return booking_with_id
  
- 
+# Hämtar alla bokningar 
 @app.get("/bookings", response_model=List[Booking])
 def get_bookings():
+    # Returnerar alla bokningar
     return bookings_db
- 
+
+# Tar bort en bokning 
 @app.delete("/bookings/{booking_id}", status_code=204)
-def delete_booking(booking_id: int):
+def delete_booking(booking_id: int): # Tar emot ett boknings ID som parameter
+    # Söker efter bokningen i databasen
     global bookings_db
     booking = next((b for b in bookings_db if b.id == booking_id), None)
+    # Om ingen bokning hittas så skickas ett 404 meddelande
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
+    # Tar bort bokningen från databasen
     bookings_db = [b for b in bookings_db if b.id != booking_id]
     return {"detail": "Booking deleted"}
  
 if __name__ == "__main__":
-    import uvicorn
+    import uvicorn # Importerar uvicorn för att kunna köra appen
     uvicorn.run(app, host="127.0.0.1", port=8000)
  
 
+
 """
+Curl kommandon för att testa API:et
 
 ---------------Get movies after specific date/time--------------
 curl -Method 'GET' `
